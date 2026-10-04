@@ -1,0 +1,14 @@
+[
+  {
+    "question": "Which of my repos is written mainly in Python?",
+    "must_contain_any": ["REPLACE_WITH_A_REPO_NAME"]
+  },
+  {
+    "question": "What does the project REPLACE_REPO do, in two sentences?",
+    "must_contain_any": ["REPLACE_WITH_A_KEYWORD_FROM_ITS_README"]
+  },
+  {
+    "question": "Which file in REPLACE_REPO handles authentication?",
+    "must_contain_any": ["REPLACE_WITH_REAL_FILE_PATH"]
+  }
+]

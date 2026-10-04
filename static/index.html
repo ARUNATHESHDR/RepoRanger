@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repo Agent</title>
+<style>
+  :root {
+    --bg: #1d1c1a; /* claude dark bg */
+    --panel: #262522; /* claude panel bg */
+    --ink: #e2dfd8; /* warm off-white */
+    --muted: #95928a; /* soft text */
+    --line: #383733; /* subtle borders */
+    --accent: #da7756; /* terracotta orange */
+    --accent-ink: #ffffff;
+    --warn: #e76e5d;
+    --warn-bg: #3a2a28;
+    --ok: #6b8d73;
+    --user: #32302d; /* user bubble */
+    --user-ink: #e2dfd8;
+    --code: #161514;
+    --sans: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1d1c1a; --panel: #262522; --ink: #e2dfd8; --muted: #95928a; --line: #383733;
+      --accent: #da7756; --accent-ink: #ffffff; --warn: #e76e5d; --warn-bg: #3a2a28; --ok: #6b8d73;
+      --user: #32302d; --user-ink: #e2dfd8; --code: #161514; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.5 'Inter', var(--sans); }
+  .app { display: grid; grid-template-columns: 260px minmax(0, 1fr) 320px; height: 100%; gap: 1px; background: var(--line); }
+  .col { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  h2 { font-size: 13px; font-weight: 650; margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .scroll { overflow-y: auto; flex: 1; padding: 8px; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 6px 12px; font-weight: 500; transition: background 0.15s, border-color 0.15s; }
+  button:hover { background: var(--line); border-color: var(--muted); transform: translateY(-1px); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:disabled { opacity: .5; cursor: default; }
+
+  .repo { padding: 10px 14px; margin-bottom: 6px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; background: transparent; transition: background 0.15s; }
+  .repo:hover { background: var(--bg); }
+  .repo.active { border: 1px solid var(--line); background: var(--bg); }
+  .repo b { display: block; font-weight: 600; }
+  .repo small { color: var(--muted); }
+  .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line); margin-right: 4px; color: var(--muted); }
+  .badge.bad { color: var(--warn); border-color: var(--warn); }
+
+  .chat { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { padding: 8px 0; max-width: 720px; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
+  .msg.user { align-self: flex-end; background: var(--user); color: var(--user-ink); border-radius: 12px; padding: 12px 16px; margin: 8px 0; border: 1px solid var(--line); }
+  .msg.bot { align-self: flex-start; background: transparent; color: var(--ink); border-radius: 0; }
+  .msg code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  .msg pre { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 10px 12px; border-radius: 6px; overflow-x: auto; white-space: pre; margin: 8px 0; }
+  .msg.thinking { color: var(--muted); font-style: italic; }
+  .approval { align-self: flex-start; max-width: 760px; border: 1px solid var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 12px 14px; }
+  .approval pre { font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; margin: 6px 0 10px; }
+  .approval .row { display: flex; gap: 8px; }
+  .composer { border-top: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; max-height: 140px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+  .empty { color: var(--muted); padding: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips button { font-size: 13.5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 6px 14px; transition: background 0.15s; }
+  .chips button:hover { background: var(--line); }
+
+  .sugg { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .sugg b { font-weight: 600; }
+  .sugg p { margin: 2px 0 6px; color: var(--muted); font-size: 13.5px; }
+  .sugg .repo-tag { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .sugg .row { display: flex; gap: 6px; }
+  .sugg .row button { font-size: 12.5px; padding: 3px 8px; }
+  #status { font-weight: 400; color: var(--muted); font-size: 12px; }
+
+  @media (max-width: 960px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .col.side { max-height: 30vh; }
+  }
+</style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+  <aside class="col side">
+    <h2>Projects <span><button id="sync">Sync</button></span></h2>
+    <div id="status" style="padding:6px 16px"></div>
+    <div class="scroll" id="repos"></div>
+  </aside>
+
+  <main class="col">
+    <h2>Chat <span id="scope" style="font-weight:400;color:var(--muted)"></span></h2>
+    <div class="scroll"><div class="chat" id="chat"></div></div>
+    <div class="composer">
+      <textarea id="input" rows="1" placeholder="Ask about a project, or tell me what to improve"></textarea>
+      <button class="primary" id="send">Send</button>
+    </div>
+  </main>
+
+  <aside class="col side">
+    <h2>Suggestions <span><button id="digest">Digest</button></span></h2>
+    <div class="scroll" id="suggs"></div>
+  </aside>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const THREAD = localStorage.getItem("thread") || ("t-" + Math.random().toString(36).slice(2, 10));
+localStorage.setItem("thread", THREAD);
+let activeRepo = null, busy = false;
+
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function md(text) {
+  const parts = esc(text).split(/```/);
+  return parts.map((p, i) => {
+    if (i % 2) return "<pre>" + p.replace(/^[a-zA-Z0-9]*\n/, "") + "</pre>";
+    return p.replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  }).join("");
+}
+function addMsg(role, text, cls = "") {
+  const d = document.createElement("div");
+  d.className = "msg " + role + " " + cls;
+  d.innerHTML = role === "bot" ? md(text) : esc(text);
+  $("chat").appendChild(d);
+  d.scrollIntoView({ block: "end" });
+  return d;
+}
+async function api(path, opts) {
+  const r = await fetch("/api" + path, opts && { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(opts) });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+async function loadRepos() {
+  const repos = await api("/repos");
+  const box = $("repos");
+  if (!repos.length) {
+    box.innerHTML = '<div class="empty">No projects yet. Press Sync to pull your repositories.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  repos.forEach((r) => {
+    const s = r.stats || {};
+    const el = document.createElement("div");
+    el.className = "repo" + (activeRepo === r.name ? " active" : "");
+    el.innerHTML = `<b>${esc(r.name)}</b><small>${esc(r.language || "n/a")} · pushed ${(r.pushed_at || "").slice(0, 10)}</small><div style="margin-top:4px">
+      ${s.has_tests === false ? '<span class="badge bad">no tests</span>' : ""}
+      ${s.has_ci === false ? '<span class="badge bad">no CI</span>' : ""}
+      ${!r.indexed_at ? '<span class="badge">not indexed</span>' : ""}</div>`;
+    el.onclick = () => { activeRepo = activeRepo === r.name ? null : r.name; $("scope").textContent = activeRepo ? "focused on " + activeRepo : ""; loadRepos(); loadSuggs(); };
+    box.appendChild(el);
+  });
+}
+
+async function loadSuggs() {
+  const rows = await api("/suggestions" + (activeRepo ? "?repo=" + encodeURIComponent(activeRepo) : ""));
+  const box = $("suggs");
+  if (!rows.length) { box.innerHTML = '<div class="empty">Nothing open. New suggestions appear after each sync.</div>'; return; }
+  box.innerHTML = "";
+  rows.forEach((s) => {
+    const el = document.createElement("div");
+    el.className = "sugg";
+    el.innerHTML = `<span class="repo-tag">${esc(s.repo)}</span><br><b>${esc(s.title)}</b><p>${esc(s.detail)}</p>
+      <div class="row"><button data-a="discuss">Discuss</button><button data-a="done">Done</button><button data-a="dismissed">Dismiss</button></div>`;
+    el.querySelectorAll("button").forEach((b) => b.onclick = async () => {
+      if (b.dataset.a === "discuss") { send(`Let's work on this for ${s.repo}: ${s.title}. What exactly should I change?`); return; }
+      await api("/suggestions/" + s.id, { status: b.dataset.a }); loadSuggs();
+    });
+    box.appendChild(el);
+  });
+}
+
+function showApproval(p) {
+  const el = document.createElement("div");
+  el.className = "approval";
+  const acts = p.actions.map((a) => `${a.tool}\n${JSON.stringify(a.args, null, 2)}`).join("\n\n");
+  el.innerHTML = `<b>Approve this action?</b><pre>${esc(acts)}</pre><div class="row"><button class="primary" data-ok="1">Approve</button><button data-ok="0">Reject</button></div>`;
+  el.querySelectorAll("button").forEach((b) => b.onclick = async () => {
+    el.querySelectorAll("button").forEach((x) => x.disabled = true);
+    const t = addMsg("bot", "Working…", "thinking");
+    try { handle(await api("/approve", { thread_id: THREAD, approved: b.dataset.ok === "1" }), t); }
+    catch (e) { t.textContent = "Error: " + e.message; }
+  });
+  $("chat").appendChild(el);
+  el.scrollIntoView({ block: "end" });
+}
+function handle(res, thinkingEl) {
+  thinkingEl && thinkingEl.remove();
+  if (res.pending) showApproval(res.pending); else addMsg("bot", res.reply);
+  loadSuggs();
+}
+
+async function send(text) {
+  text = (text || $("input").value).trim();
+  if (!text || busy) return;
+  busy = true; $("send").disabled = true; $("input").value = "";
+  addMsg("user", text);
+  const t = addMsg("bot", "Looking through your repos…", "thinking");
+  const prefixed = activeRepo ? `[Focus repo: ${activeRepo}] ${text}` : text;
+  try { handle(await api("/chat", { thread_id: THREAD, message: prefixed }), t); }
+  catch (e) { t.classList.remove("thinking"); t.textContent = "Error: " + e.message; }
+  busy = false; $("send").disabled = false; $("input").focus();
+}
+
+$("send").onclick = () => send();
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+$("input").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; });
+
+$("sync").onclick = async () => {
+  await api("/sync", {});
+  $("status").textContent = "Syncing… first run can take a few minutes";
+  const timer = setInterval(async () => {
+    const s = await api("/sync/status");
+    if (!s.running) { clearInterval(timer); $("status").textContent = "Sync finished"; loadRepos(); loadSuggs(); }
+  }, 3000);
+};
+$("digest").onclick = async () => {
+  const t = addMsg("bot", "Writing digest…", "thinking");
+  try { const d = await api("/digest"); t.remove(); addMsg("bot", d.digest); } catch (e) { t.textContent = "Error: " + e.message; }
+};
+
+(function intro() {
+  const d = addMsg("bot", "Ask me about any of your projects: what state it is in, what is risky, what to build next. I can also open GitHub issues, but only after you approve.");
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  ["What changed in my repos this week?", "Which project needs attention most?", "Give me a plan to improve my least healthy repo"].forEach((q) => {
+    const b = document.createElement("button"); b.textContent = q; b.onclick = () => send(q); chips.appendChild(b);
+  });
+  d.appendChild(chips);
+})();
+loadRepos(); loadSuggs();
+</script>
+</body>
+</html>

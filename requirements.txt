@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+python-dotenv>=1.0
+apscheduler>=3.10
+langchain>=0.3
+langchain-core>=0.3
+langchain-google-genai>=2.0   # Primary LLM: Google Gemini Flash
+langchain-groq>=0.2           # Fallback LLM
+langchain-chroma>=0.1.4
+langchain-text-splitters>=0.3
+chromadb>=0.5
+langgraph>=0.2.60
+langgraph-checkpoint-sqlite>=2.0
